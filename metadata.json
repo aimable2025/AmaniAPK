@@ -1,0 +1,6 @@
+{
+  "name": "Ets AMANI",
+  "description": "Plateforme d'organisation, rôles, tableaux de bord et gestion opérationnelle Ets AMANI — Ensemble, plus connectés, plus efficaces.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

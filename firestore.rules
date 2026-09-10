@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Chat Conversations Security Rules
+    match /chat_conversations/{conversationId} {
+      // Allowed to read if user is a participant or if conversation is global
+      allow read: if isAuthenticated() && (
+        resource.data.type == 'global' ||
+        request.auth.uid in resource.data.participants
+      );
+      
+      // Allowed to create if authenticated and adds oneself as participant
+      allow create: if isAuthenticated() && 
+        request.auth.uid in request.resource.data.participants;
+        
+      // Allowed to update if admin of conversation or DG
+      allow update: if isAuthenticated() && (
+        request.auth.uid in resource.data.admins ||
+        request.auth.uid in resource.data.participants
+      );
+    }
+
+    // Chat Messages Security Rules
+    match /chat_messages/{messageId} {
+      // Allowed to read if user is participant of the parent conversation
+      allow read: if isAuthenticated() && (
+        request.auth.uid in get(/databases/$(database)/documents/chat_conversations/$(resource.data.conversationId)).data.participants ||
+        get(/databases/$(database)/documents/chat_conversations/$(resource.data.conversationId)).data.type == 'global'
+      );
+      
+      // Allowed to create if user is sender and participant of conversation
+      allow create: if isAuthenticated() && 
+        request.resource.data.senderId == request.auth.uid &&
+        (
+          request.auth.uid in get(/databases/$(database)/documents/chat_conversations/$(request.resource.data.conversationId)).data.participants ||
+          get(/databases/$(database)/documents/chat_conversations/$(request.resource.data.conversationId)).data.type == 'global'
+        );
+        
+      // Allowed to update (soft delete) only by sender or administrator
+      allow update: if isAuthenticated() && (
+        resource.data.senderId == request.auth.uid
+      );
+    }
+
+    // Audit logs
+    match /audit_logs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+    }
+  }
+}
